@@ -14,4 +14,5 @@ Detect the movement of a brightly colored ball in a labyrinth using Python and O
 LIBRARIES NEEDED (atm)
     - Python
     - OpenCV
+    - NumPy
     - more will likely be added in the future.
