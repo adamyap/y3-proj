@@ -1,4 +1,4 @@
-# initial python file(s) just to fuck about in & learn this shit
+# initial python file(s) just to fuck about in & learn this shi
 
 import cv2
 import numpy as np
