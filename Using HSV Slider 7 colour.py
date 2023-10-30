@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Created on Mon Oct 30 16:11:42 2023
+Created on Mon Oct 30 16:14:46 2023
 
 @author: 44747
 """
@@ -8,6 +8,7 @@ Created on Mon Oct 30 16:11:42 2023
 import cv2
 import numpy as np
 import json
+import time
 
 def nothing(x):
     pass
@@ -15,7 +16,6 @@ def nothing(x):
 # Function to create trackbars for color calibration
 def create_color_trackbars(window_name):
     cv2.namedWindow(window_name)
-    # Check if saved values exist and load them
     saved_values = load_saved_values(window_name)
     cv2.createTrackbar('H_low', window_name, saved_values.get('H_low', 0), 179, nothing)
     cv2.createTrackbar('S_low', window_name, saved_values.get('S_low', 0), 255, nothing)
@@ -33,7 +33,6 @@ def get_trackbar_values(window_name):
     V_high = cv2.getTrackbarPos('V_high', window_name)
     return np.array([H_low, S_low, V_low]), np.array([H_high, S_high, V_high])
 
-# Load saved trackbar values from a file
 def load_saved_values(color):
     try:
         with open('trackbar_values.json', 'r') as f:
@@ -42,7 +41,6 @@ def load_saved_values(color):
     except FileNotFoundError:
         return {}
 
-# Save current trackbar values to a file
 def save_current_values(colors):
     data = {}
     for color in colors:
@@ -67,6 +65,10 @@ def main():
     if not cam.isOpened():
         print("Error: Could not open webcam.")
         return
+    
+    # Initialize the FPS counter
+    fps = 0
+    fps_time = time.time()
 
     try:
         while True:
@@ -75,27 +77,27 @@ def main():
                 print("Error: Could not read frame.")
                 break
 
+            # Calculate FPS
+            new_fps_time = time.time()
+            fps = 1 / (new_fps_time - fps_time)
+            fps_time = new_fps_time
+
             hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
 
             # Process each color
             for color in colors:
-                # Get trackbar positions for this color
                 lower_color, upper_color = get_trackbar_values(color)
 
-                # Create a mask using the HSV frame
                 mask = cv2.inRange(hsv, lower_color, upper_color)
-                # Find contours in the mask
                 contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
-                # Draw bounding box for each detected contour
                 for contour in contours:
                     x, y, w, h = cv2.boundingRect(contour)
                     cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 255, 0), 2)
 
-                # Optionally display the mask for each color in a separate window
-                # cv2.imshow(f'Mask {color}', mask)
-
-            # Display the original frame with bounding boxes
+            # Display FPS on frame
+            font_scale = 0.7
+            cv2.putText(frame, f'FPS: {fps:.2f}', (20, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
             cv2.imshow('Webcam Feed + Object Detection', frame)
             
             if cv2.waitKey(1) & 0xFF == ord(' '):  # If spacebar is pressed
