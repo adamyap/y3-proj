@@ -1,23 +1,22 @@
 import serial
 import time
 
-ser = serial.Serial('COM11', 9600)  # replace 'COM11' with the port where your Arduino is connected
-time.sleep(2)  # wait for the serial connection to initialize
+ser = serial.Serial('COM11', 9600)
 
 def move_servos(angle1, angle2):
     if 0 <= angle1 <= 120 and 0 <= angle2 <= 120:
         ser.write(f"{angle1},{angle2}".encode())
-        #time.sleep(1)  # wait for the servos to move
+        time.sleep(1)  # delay
 
 def continuous_rotation():
     move_servos(120, 120)
-    time.sleep(1)  # adjust this delay for speed control
+    time.sleep(1)
     move_servos(0, 0)
     time.sleep(1)
 
 def simple_maze():
     move_servos(60, 60)
-    time.sleep(2)
+    time.sleep(3)
     move_servos(0, 0)
     time.sleep(1.5)
     move_servos(120, 120)
@@ -29,7 +28,7 @@ def simple_maze():
     move_servos(0, 0)
     time.sleep(1)
     move_servos(120, 0) ####
-    time.sleep(0.23)
+    time.sleep(0.3)
     move_servos(0, 30)
     time.sleep(2)
     move_servos(120, 120)
@@ -68,8 +67,8 @@ def simple_maze():
 
 
 while True:
-    #angle1 = int(input("Enter an angle for servo1 (0-120): "))
-    #angle2 = int(input("Enter an angle for servo2 (0-120): "))
+    #angle1 = int(input("Enter angle for servo1 (0-120): "))
+    #angle2 = int(input("Enter angle for servo2 (0-120): "))
     #move_servos(angle1, angle2)
     #continuous_rotation()
     simple_maze()
