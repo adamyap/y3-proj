@@ -70,7 +70,7 @@ def main():
             hull = cv2.convexHull(merged_contour)
 
             # Draw the bounding contour on the frame
-            cv2.drawContours(frame, [hull], -1, (0, 255, 0), 2)
+            cv2.drawContours(frame, [hull], -1, (0, 0, 255), thickness=cv2.FILLED)
 
             # Calculate the center of the hull
             M = cv2.moments(hull)
@@ -82,7 +82,7 @@ def main():
 
             # Draw the center of the shape on the image
             cv2.circle(frame, (cX, cY), 7, (255, 255, 255), -1)
-            cv2.putText(frame, "center", (cX - 20, cY - 20),
+            cv2.putText(frame, f"Center: ({cX}, {cY})", (cX - 20, cY - 20),
                 cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
 
             # Draw crosshair at the center
