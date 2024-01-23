@@ -5,6 +5,7 @@ from skimage import img_as_ubyte
 
 # Load the image
 image = cv2.imread('maze_solving\maze_edited.png')
+image = cv2.resize(image,(720,540))
 
 # Convert the frame to HSV
 hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
@@ -52,7 +53,7 @@ def click_event(event, x_start, y_start, flags, param):
 
             # Now the virtual object can teleport to (x_nearest, y_nearest)
             # We can represent the virtual object as a blue dot on the image
-            cv2.circle(image, (x_nearest, y_nearest), radius=15, color=(169, 169, 169), thickness=-1)
+            cv2.circle(image, (x_nearest, y_nearest), radius=5, color=(169, 169, 169), thickness=-1)
 
             # Display the image
             cv2.imshow('Image', image)
