@@ -1,8 +1,8 @@
 {
     "White": {
-        "H_low": 0,
-        "S_low": 0,
-        "V_low": 0,
+        "H_low": 179,
+        "S_low": 255,
+        "V_low": 255,
         "H_high": 179,
         "S_high": 255,
         "V_high": 255
@@ -11,9 +11,9 @@
         "H_low": 0,
         "S_low": 0,
         "V_low": 0,
-        "H_high": 179,
-        "S_high": 255,
-        "V_high": 255
+        "H_high": 50,
+        "S_high": 73,
+        "V_high": 76
     },
     "Red": {
         "H_low": 179,
@@ -24,33 +24,33 @@
         "V_high": 255
     },
     "Yellow": {
-        "H_low": 0,
-        "S_low": 0,
-        "V_low": 0,
+        "H_low": 179,
+        "S_low": 255,
+        "V_low": 255,
         "H_high": 179,
         "S_high": 255,
         "V_high": 255
     },
     "Green": {
-        "H_low": 68,
-        "S_low": 113,
-        "V_low": 102,
+        "H_low": 179,
+        "S_low": 255,
+        "V_low": 255,
         "H_high": 179,
         "S_high": 255,
         "V_high": 255
     },
     "Magenta": {
-        "H_low": 58,
-        "S_low": 76,
-        "V_low": 102,
+        "H_low": 179,
+        "S_low": 255,
+        "V_low": 255,
         "H_high": 179,
         "S_high": 255,
         "V_high": 255
     },
     "Blue": {
-        "H_low": 0,
-        "S_low": 0,
-        "V_low": 0,
+        "H_low": 179,
+        "S_low": 255,
+        "V_low": 255,
         "H_high": 179,
         "S_high": 255,
         "V_high": 255
