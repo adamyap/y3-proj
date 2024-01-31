@@ -4,7 +4,7 @@ from skimage.morphology import skeletonize
 from skimage import img_as_ubyte
 
 # Load the image
-image = cv2.imread('maze_solving\maze_edited.png')
+image = cv2.imread('maze_edited.png')
 image = cv2.resize(image,(720,540))
 
 # Convert the frame to HSV
