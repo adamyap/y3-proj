@@ -2,10 +2,13 @@ import cv2
 import numpy as np
 from skimage.morphology import skeletonize
 from skimage import img_as_ubyte
+from image_rectification import rectify
 
 # Load the image
-image = cv2.imread('maze_solving\maze_edited.png')
+image = cv2.imread('maze_edited_warp.png')
 image = cv2.resize(image,(720,540))
+
+image = rectify(image)
 
 # Convert the frame to HSV
 hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
@@ -39,11 +42,21 @@ def click_event(event, x_start, y_start, flags, param):
         # Create a copy of the image
         image_copy = image.copy()
 
+        # Define the step size
+        step_size = 50
+
         # While there are still points on the path
         while len(x_copy) > 0 and len(y_copy) > 0:
 
             # Calculate the Euclidean distance from the starting point to each point on the path
             distances = np.sqrt((x_copy - x_start)**2 + (y_copy - y_start)**2)
+
+            # Only consider the points that are within the step size from the current position
+            close_points = distances <= step_size
+
+            # If there are no close points, break the loop
+            if not np.any(close_points):
+                break
 
             # Find the index of the minimum distance
             idx = np.argmin(distances)

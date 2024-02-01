@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 
 # Load an image
-image = cv2.imread('maze_solving\maze_edited.png')
+image = cv2.imread('maze_edited.png')
 
 # Convert the image to HSV
 hsv_image = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
