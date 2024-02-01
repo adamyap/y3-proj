@@ -2,11 +2,11 @@ import cv2
 import numpy as np
 
 #green
-#lower_color = np.array([50, 200, 200])
-#upper_color = np.array([60, 255, 255])
+lower_color = np.array([50, 200, 200])
+upper_color = np.array([60, 255, 255])
 #white
-lower_color = np.array([0, 0, 150])
-upper_color = np.array([255, 50, 255])
+#lower_color = np.array([0, 0, 150])
+#upper_color = np.array([255, 50, 255])
 width = 720
 height = 540
 

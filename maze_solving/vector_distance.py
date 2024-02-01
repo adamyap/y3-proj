@@ -2,10 +2,12 @@ import cv2
 import numpy as np
 from skimage.morphology import skeletonize
 from skimage import img_as_ubyte
+from image_rectification import rectify
 
 # Load the image
-image = cv2.imread('maze_edited.png')
+image = cv2.imread('maze_edited_warp.png')
 image = cv2.resize(image,(720,540))
+image = rectify(image)
 
 # Convert the frame to HSV
 hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
