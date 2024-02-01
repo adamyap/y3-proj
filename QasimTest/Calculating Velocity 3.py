@@ -57,7 +57,7 @@ def moving_average(velocities, new_velocity, max_length):
         velocities.pop(0)  # Get rid of oldest measurement in list
     # Calculate the moving average
     if velocities:
-        return sum(velocities) / len(velocities)  # sum of velocities / number of velocities in list
+        return sum(velocities) / len(velocities)  # number of velocities in list
     else:
         return 0 # If not moving then Velocity =0
 

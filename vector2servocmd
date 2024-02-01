@@ -1,0 +1,23 @@
+import math 
+line_coordx = int(input("insert line coordx"))
+line_coordy = int(input("insert line coordy"))
+ball_coordx = int(input("insert ball coordx"))
+ball_coordy = int(input("insert ball coordy"))
+vectorx = ball_coordx - line_coordx
+vectory = ball_coordy - line_coordy
+if vectorx >0:
+    anglex = 10+50*(vectorx/100)
+elif vectorx == 0:
+    anglex = 0
+else:
+    anglex = -10-50*(vectorx/100)
+if vectory >0:
+    angley = 10+50*(vectory/100)
+elif vectory == 0:
+    angley =0
+else:
+    angley = -10-50*(vectory/100)
+print("rotorx angle =:",anglex,"rotory angle =:",angley)
+
+
+ 
