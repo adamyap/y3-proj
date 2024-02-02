@@ -2,14 +2,10 @@ import cv2
 import numpy as np
 from skimage.morphology import skeletonize
 from skimage import img_as_ubyte
-from image_rectification import rectify
+from image_rectification_colours_green_red import rectify
 
 # Load the image
-<<<<<<< Updated upstream
-image = cv2.imread('maze_edited.png')
-=======
 image = cv2.imread('maze_edited_warp.png')
->>>>>>> Stashed changes
 image = cv2.resize(image,(720,540))
 
 image = rectify(image)
