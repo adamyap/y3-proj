@@ -7,7 +7,6 @@ from image_rectification_colours_green_red import rectify
 # Load the image
 image = cv2.imread('maze_edited_warp.png')
 image = cv2.resize(image,(720,540))
-
 image = rectify(image)
 
 # Convert the image to grayscale
