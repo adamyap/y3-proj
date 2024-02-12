@@ -1,10 +1,10 @@
 import cv2
 import numpy as np
 
-#green
-lower_color = np.array([50, 200, 200])
-upper_color = np.array([60, 255, 255])
-#white
+# Defining green colour range
+lower_green = np.array([40, 40, 40])
+upper_green = np.array([80, 255, 160])
+
 #lower_color = np.array([0, 0, 150])
 #upper_color = np.array([255, 50, 255])
 width = 720
@@ -16,8 +16,8 @@ def rectify(image):
     hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
 
     # Create a binary mask where the color is within the range
-    mask = cv2.inRange(hsv, lower_color, upper_color)
-    #cv2.imshow('Mask',mask)
+    mask = cv2.inRange(hsv, lower_green, upper_green)
+   
 
     # Find contours in the mask
     contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -35,12 +35,12 @@ def rectify(image):
 
     # Now you can use these points in the perspective transform as before
     src_pts = np.float32(approx)
-    #src_pts = src_pts[src_pts[:, :, 1].argsort(axis=0)[:, 0]]
-    #src_pts[:2] = src_pts[:2][src_pts[:2, :, 0].argsort(axis=0)[:, 0]]
-    #src_pts[2:] = src_pts[2:][src_pts[2:, :, 0].argsort(axis=0)[:, 0][::-1]]
-    #dst_pts = np.float32([[0, 0], [width, 0], [width, height], [0, height]])
+    src_pts = src_pts[src_pts[:, :, 1].argsort(axis=0)[:, 0]]
+    src_pts[:2] = src_pts[:2][src_pts[:2, :, 0].argsort(axis=0)[:, 0]]
+    src_pts[2:] = src_pts[2:][src_pts[2:, :, 0].argsort(axis=0)[:, 0][::-1]]
+    dst_pts = np.float32([[0, 0], [width, 0], [width, height], [0, height]])
 
-    dst_pts = np.float32([[width, 0], [width, height], [0, height], [0, 0]])
+    #dst_pts = np.float32([[width, 0], [width, height], [0, height], [0, 0]])
     # Compute the homography matrix
     H, _ = cv2.findHomography(src_pts, dst_pts)
 
@@ -50,11 +50,27 @@ def rectify(image):
     return warped_image
 
 if __name__ == "__main__":
-    # Load the image
-    image = cv2.imread('maze_edited_noborder_warp.png')
-    image = cv2.resize(image,(720,540))
+    # Connect to webcam (0 = default cam)
+    cap = cv2.VideoCapture(0,cv2.CAP_DSHOW)
 
-    # Display the image
-    cv2.imshow('Image', rectify(image))
-    cv2.waitKey(0)
+    # Set the resolution to 720p
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+
+    # Set the frame rate to 60fps
+    cap.set(cv2.CAP_PROP_FPS, 30)
+
+    while True:
+        # Capture frame-by-frame
+        ret, frame = cap.read()
+
+        # Display the image
+        cv2.imshow('Video', rectify(frame))
+
+        # Break the loop on 'q' key press
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            break
+
+    # Release the video capture and close windows
+    cap.release()
     cv2.destroyAllWindows()

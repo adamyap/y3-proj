@@ -30,10 +30,7 @@ def define_path(contours):
     # Find contours in the skeleton
     contours, _ = cv2.findContours(skeleton, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
 
-    # Draw each contour on the image
-    for contour in contours:
-        cv2.drawContours(image, [contour], -1, (0, 255, 0), 1)
-    return x,y
+    return x,y,contours
 
 def define_hole(contours):
     # Define the min and max area for a filled contour
@@ -74,9 +71,7 @@ def define_hole(contours):
     # Detect blobs
     keypoints = detector.detect(mask)
 
-    # Draw detected blobs as red circles
-    # cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS ensures the size of the circle corresponds to the size of blob
-    cv2.drawKeypoints(image, keypoints, image, (0,0,255), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+    return keypoints
 
 def define_wall(contours):
     # Define the minimum area for a filled contour
@@ -85,62 +80,45 @@ def define_wall(contours):
     # Filter contours based on the area
     wall_contours = [cnt for cnt in contours if cv2.contourArea(cnt) < max_area]
 
-    # Create an empty mask to draw the filled contours
-    mask = np.zeros_like(edges)
-
-    # Draw the filled contours on the mask
-    cv2.drawContours(mask, wall_contours, -1, (255), thickness=cv2.FILLED)
-
-    # Draw the filled contours on the original image
-    cv2.drawContours(image, wall_contours, -1, (255, 155, 0), 1)
+    return contours
 
 
-def click_event(event,x_start, y_start, flags, param):
+def click_event(event,x_start,y_start,flags,param):
+    global x,y
     if event == cv2.EVENT_LBUTTONDOWN:
 
-        # Create a copy of the path coordinates
-        x_copy, y_copy = define_path(contours)
+        # Use processed image as a base.
+        image_copy = processed_image.copy()
 
-        # Create a copy of the image
-        image_copy = image.copy()
+        # Calculate the Euclidean distance from the starting point to each point on the path
+        distances = np.sqrt((x - x_start)**2 + (y - y_start)**2)
 
-        # Define the step size
-        step_size = 50
+        # Find the index of the minimum distance
+        idx = np.argmin(distances)
 
-        # While there are still points on the path
-        while len(x_copy) > 0 and len(y_copy) > 0:
+        # The nearest point on the path is then
+        x_nearest, y_nearest = x[idx], y[idx]
 
-            # Calculate the Euclidean distance from the starting point to each point on the path
-            distances = np.sqrt((x_copy - x_start)**2 + (y_copy - y_start)**2)
+        # Draw a line from the clicked point to the nearest point on the path
+        cv2.line(image_copy, (x_start, y_start), (x_nearest, y_nearest), (0, 0, 255), 2)
 
-            # Only consider the points that are within the step size from the current position
-            close_points = distances <= step_size
+        # Calculate the Euclidean distance
+        euclidean_distance = np.sqrt((x_nearest - x_start)**2 + (y_nearest - y_start)**2)
 
-            # If there are no close points, break the loop
-            if not np.any(close_points):
-                break
+        # Display the Euclidean distance next to the line
+        cv2.putText(image_copy, f'Distance: {euclidean_distance:.2f}', (x_start, y_start - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
 
-            # Find the index of the minimum distance
-            idx = np.argmin(distances)
+        # Calculate the x and y distances
+        x_distance = x_nearest - x_start
+        y_distance = -(y_nearest - y_start)
 
-            # The nearest point on the path is then
-            x_nearest, y_nearest = x_copy[idx], y_copy[idx]
+        # Display the x and y distances
+        cv2.putText(image_copy, f'X Distance: {x_distance:.2f}', (x_start, y_start - 30), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
+        cv2.putText(image_copy, f'Y Distance: {y_distance:.2f}', (x_start, y_start - 50), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
 
-            # Now the virtual object can teleport to (x_nearest, y_nearest)
-            # We can represent the virtual object as a blue dot on the image
-            cv2.circle(image, (x_nearest, y_nearest), radius=5, color=(169, 169, 169), thickness=-1)
-
-            # Display the image
-            cv2.imshow('Working Image', image)
-            cv2.waitKey(1)
-
-            # Remove the nearest point from the path
-            x_copy = np.delete(x_copy, idx)
-            y_copy = np.delete(y_copy, idx)
-
-            # Update the clicked point to the current position
-            x_start, y_start = x_nearest, y_nearest
-        cv2.waitKey(0)
+        # Display the image
+        cv2.imshow('Working Image', image_copy)
+        cv2.waitKey(1)
 
 if __name__ == "__main__":
     # Connect to webcam (0 = default cam)
@@ -183,11 +161,19 @@ if __name__ == "__main__":
             edges = cv2.Canny(blurred, 10, 50)
             # Find contours in the edges
             contours, _ = cv2.findContours(edges.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-            # Define contours
-            define_path(contours)
-            define_wall(contours)
-            define_hole(contours)
+            # Define walls
+            wall_contours = define_wall(contours)
+            cv2.drawContours(image, wall_contours, -1, (255, 155, 0), 1)
+            # Define hole
+            keypoints = define_hole(contours)
+            # cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS ensures the size of the circle corresponds to the size of blob
+            cv2.drawKeypoints(image, keypoints, image, (0,0,255), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+            # Define path
+            x,y,path_contours = define_path(contours)
+            for contour in path_contours:
+                cv2.drawContours(image, [contour], -1, (0, 255, 0), 1)
             cv2.imshow('Working Image', image)
+            processed_image = image.copy() # copy final image
             image_captured = True  # update the flag
         if cv2.waitKey(1) & 0xFF == 27: #ESC key
             break
