@@ -24,7 +24,7 @@ def main():
     cam.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
 
     # Set the frame rate to 60fps
-    cam.set(cv2.CAP_PROP_FPS, 60)
+    cam.set(cv2.CAP_PROP_FPS, 30)
 
     # Check if the webcam has been opened successfully
     if not cam.isOpened():
@@ -40,6 +40,8 @@ def main():
 
         # Read a frame from the webcam
         ret, frame = cam.read()
+
+        frame = rectify(frame)
 
         # Check if the frame was read successfully
         if not ret:

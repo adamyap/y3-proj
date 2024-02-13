@@ -9,7 +9,7 @@ cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
 cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
 
 # Set the frame rate to 60fps
-cap.set(cv2.CAP_PROP_FPS, 60)
+cap.set(cv2.CAP_PROP_FPS, 30)
 
 def print_hsv(event, x, y, flags, param):
     if event == cv2.EVENT_LBUTTONDOWN:
