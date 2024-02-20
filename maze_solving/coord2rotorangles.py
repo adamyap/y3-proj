@@ -1,5 +1,6 @@
 import math
 import time
+import random
 
 startup_angle = 10
 scale = 20
@@ -34,15 +35,15 @@ def calculate_rotor_angles(ball_coordx1, ball_coordy1, ball_coordx2, ball_coordy
     return round(math.degrees(angle), 2), round(2100/450*Ranglex, 2), round(2100/360*Rangley, 2)
 
 while True:
-    ball_coordx1 = float(input("Enter ball_coordx1: "))
-    ball_coordy1 = float(input("Enter ball_coordy1: "))
-    ball_coordx2 = float(input("Enter ball_coordx2: "))
-    ball_coordy2 = float(input("Enter ball_coordy2: "))
-    velocity = float(input("Enter velocity: "))
+    ball_coordx1 = random.uniform(0, 1080)
+    ball_coordy1 = random.uniform(0, 720)
+    ball_coordx2 = random.uniform(0, 1080)
+    ball_coordy2 = random.uniform(0, 720)
+    velocity = random.uniform(1, 5)
     
     result = calculate_rotor_angles(ball_coordx1, ball_coordy1, ball_coordx2, ball_coordy2, velocity)
     print("Angle:", result[0])
     print("Rotorx angle:", result[1])
     print("Rotory angle:", result[2])
     
-    time.sleep(0.1)  # 100ms delay
+    time.sleep(1)  # 100ms delay
