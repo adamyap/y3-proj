@@ -30,7 +30,7 @@ def calculate_rotor_angles(ball_coordx1, ball_coordy1, ball_coordx2, ball_coordy
     Ranglex = max(min(Ranglex, 60), -60)
     Rangley = max(min(Rangley, 60), -60)
 
-    return round(math.degrees(angle), 2), round(2100/360*Ranglex, 2), round(2100/360*Rangley, 2)
+    return round(math.degrees(angle), 2), round(2100/450*Ranglex, 2), round(2100/360*Rangley, 2)
 
 result = calculate_rotor_angles(85, 70, 85, 45, 5)
 print("Angle:", result[0])
