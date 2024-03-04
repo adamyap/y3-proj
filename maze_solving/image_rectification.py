@@ -3,7 +3,7 @@ import numpy as np
 
 # Defining green colour range
 lower_green = np.array([40, 40, 40])
-upper_green = np.array([80, 255, 160])
+upper_green = np.array([100, 255, 160])
 
 #lower_color = np.array([0, 0, 150])
 #upper_color = np.array([255, 50, 255])
