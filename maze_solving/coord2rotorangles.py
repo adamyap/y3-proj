@@ -32,7 +32,7 @@ def calculate_rotor_angles(ball_coordx1, ball_coordy1, ball_coordx2, ball_coordy
     Ranglex = max(min(Ranglex, 60), -60)
     Rangley = max(min(Rangley, 60), -60)
 
-    return round(math.degrees(angle), 2), round(2100/450*Ranglex, 2), round(2100/360*Rangley, 2)
+    return round(2100/450*Ranglex), round(2100/360*Rangley)
 
 while True:
     ball_coordx1 = random.uniform(0, 1080)
@@ -42,8 +42,7 @@ while True:
     velocity = random.uniform(1, 5)
     
     result = calculate_rotor_angles(ball_coordx1, ball_coordy1, ball_coordx2, ball_coordy2, velocity)
-    print("Angle:", result[0])
-    print("Rotorx angle:", result[1])
-    print("Rotory angle:", result[2])
+    print("A ", result[0])
+    print("B ", result[1])
     
     time.sleep(1)  # 100ms delay
