@@ -1,14 +1,15 @@
 import cv2
 import numpy as np
+from image_rectification import rectify
 from skimage.morphology import skeletonize
 from skimage import img_as_ubyte
-from image_rectification import rectify
-from scipy.interpolate import interp1d
+from pidtune import *
 import time
+import serial
+import tkinter as tk
+import threading
 
-
-
-def define_path(contours):
+def define_path(contours,edges):
     # Define the minimum area for a filled contour
     min_area = 2000
     min_perimeter = 5000
@@ -48,11 +49,44 @@ def define_path(contours):
         epsilon = 0.001*cv2.arcLength(contour,True)
         approx = cv2.approxPolyDP(contour,epsilon,True)
         for point in approx:
-            points.append(tuple(point[0]))
+            distances = [np.sqrt((point[0][0] - p[0])**2 + (point[0][1] - p[1])**2) for p in points]
+            if np.min(distances) > 10:
+                points.append(tuple(point[0]))
 
     return points, contours
 
-def define_hole(contours):
+def order_points(image,points):
+
+    lower_yellow = np.array([20, 180, 80])
+    upper_yellow = np.array([30, 255, 255])
+
+    # Convert the image to HSV color space
+    hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+
+    # Create a binary mask where the color is within the range
+    mask = cv2.inRange(hsv, lower_yellow, upper_yellow)
+
+        # Find contours in the mask
+    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    # Find the largest contour, assuming it's the yellow object
+    largest_contour = max(contours, key=cv2.contourArea)
+
+    # Calculate the center of the largest contour
+    M = cv2.moments(largest_contour)
+    cX = int(M["m10"] / M["m00"])
+    cY = int(M["m01"] / M["m00"])
+    ordered_points = [[cX,cY]]
+
+    while points:
+        last_point = ordered_points[-1]
+        distances = [np.sqrt((point[0] - last_point[0])**2 + (point[1] - last_point[1])**2) for point in points]
+        nearest_point = points.pop(np.argmin(distances))
+        ordered_points.append(nearest_point)
+
+    return ordered_points
+
+def define_hole(contours,edges):
     # Define the min and max area for a filled contour
     min_area = 100
     max_area = 10000
@@ -94,7 +128,7 @@ def define_wall(contours):
 
     return wall_contours
 
-def locate_ball(frame):
+def locate_ball(frame,edges):
     # Convert the frame to HSV
     hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
     # Threshold the HSV image to get only red colors
@@ -130,35 +164,32 @@ def locate_ball(frame):
 
         # Calculate the convex hull of the merged contour
         hull = cv2.convexHull(merged_contour)
-
-        # Calculate the center of the hull
-        M = cv2.moments(hull)
-        if M["m00"] != 0:
-            cX = int(M["m10"] / M["m00"])
-            cY = int(M["m01"] / M["m00"])
-        else:
-            cX, cY = 0, 0
     else:
-        cX,cY,hull = 0,0,None
+        hull = None
 
-    return cX,cY,hull
+    return hull
 
-prev_center = None
-velocity = [0, 0]
-N = 5  # Number of frames to consider for the moving average
-velocities = []
-prev_time = time.time()
-
-if __name__ == "__main__":
-    # Connect to webcam (0 = default cam)
-    cap = cv2.VideoCapture(0,cv2.CAP_DSHOW)
-    # Set the resolution to 720p
-    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
-    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
-    # Set the frame rate to 60fps
-    cap.set(cv2.CAP_PROP_FPS, 30)
+def run_image_processing():
+    global x_integral
+    global y_integral
+    global start_solve
+    global ser
+    try:
+        # Initialize serial connection
+        ser = serial.Serial('COM3', 9600)
+        # Connect to webcam (0 = default cam)
+        cap = cv2.VideoCapture(0,cv2.CAP_DSHOW)
+        # Set the resolution to 720p
+        cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
+        cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+        # Set the frame rate to 60fps
+        cap.set(cv2.CAP_PROP_FPS, 30)
+    except:
+        print("Error: Could not connect to the camera or the Arduino")
+        pass
     # Start the timer
     start_time = time.time()
+    interval_time = time.time()
     # Flag to indicate if the image has been captured
     image_captured = False
 
@@ -166,50 +197,59 @@ if __name__ == "__main__":
     backup_image = cv2.imread('green.jpg')
     cv2.resize(backup_image,(1280,720))
 
+    prev_center = None
+    velocity = [0, 0]
+    N = 1 # Number of frames to consider for the moving average
+    velocities = []
+    prev_time = time.time()
+    KpX,KiX,KdX = 1.1,5.5,0.9
+    KpY,KiY,KdY = 2.0,5.5,-1.6
+    x_integral = 0
+    y_integral = 0
+    start_solve = False
+
     while True:
-        # Capture frame-by-frame
-        ret, frame = cap.read()
         # Resize the frame to desired size
         try:
+            # Capture frame-by-frame
+            ret, frame = cap.read()
             frame = rectify(frame)
         except:
             frame = rectify(backup_image)
 
-        if not image_captured and time.time() - start_time >= 1:
+        if not image_captured and time.time() - start_time >= 1.5:
             image = frame
-            # Convert the image to grayscale
             gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-            # Apply Gaussian blur to the image
             blurred = cv2.GaussianBlur(gray, (5, 5), 0)
-            # Perform edge detection
             edges = cv2.Canny(blurred, 15, 50)
-            # Find contours in the edges
             contours, _ = cv2.findContours(edges.copy(), cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
             # Define walls
-            wall_contours = define_wall(contours)
-            for cnt in wall_contours:
-                cv2.drawContours(image, [cnt], -1, (255, 155, 0), 1)
-            # Define hole
-            keypoints = define_hole(contours)
-            # cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS ensures the size of the circle corresponds to the size of blob
+            #wall_contours = define_wall(contours)
+            #for cnt in wall_contours:
+            #    cv2.drawContours(image, [cnt], -1, (255, 155, 0), 1)
+            # Define and draw holel
+            keypoints = define_hole(contours,edges)
             cv2.drawKeypoints(image, keypoints, image, (0,255,255), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
-            # Define path
-            path_points,path_contours = define_path(contours)
-            #path_points = split_contours_into_points(path_contours)
-            # Assume path_points is the list of approximated points
-            x_path = np.array([point[0] for point in path_points])
-            y_path = np.array([point[1] for point in path_points])
-            for point in path_points:
+            # Define and draw path
+            path_points,path_contours = define_path(contours,edges)
+            ordered_points = order_points(image, path_points)
+            # Separate path points into x and y arrays
+            x_path = np.array([point[0] for point in ordered_points])
+            y_path = np.array([point[1] for point in ordered_points])
+            # Label each point on the path
+            for i,point in enumerate(ordered_points):
                 cv2.circle(image, tuple(map(int, point)), 3, (255, 255, 255), -1)
+                cv2.putText(image, str(i), (point[0] + 5, point[1] + 5), cv2.FONT_HERSHEY_SIMPLEX, 0.3, (0, 255, 0), 1)
+            # Draw the path contour
             for contour in path_contours:
                 cv2.drawContours(image, [contour], -1, (0, 255, 0), 1)
 
-            processed_image = image.copy() # copy final image
+            processed_image = image.copy()
             cv2.imshow('Working Image', image)
-            image_captured = True  # update the flag
+            image_captured = True
         
         elif image_captured:
-            cX,cY,ball_contours = locate_ball(frame)
+            ball_contours = locate_ball(frame,edges)
             if ball_contours is not None:
                 image = processed_image.copy()
 
@@ -220,45 +260,10 @@ if __name__ == "__main__":
 
                 # Draw the smallest enclosing circle on the frame
                 cv2.circle(image, center, 13, (0, 0, 255), thickness=2)
-                #cv2.putText(image, f"{center}", (center[0] - 20, center[1] - 20), cv2.FONT_HERSHEY_SIMPLEX, 0.3, (255, 255, 255), 1)
 
                 # Draw crosshair at the center
                 cv2.line(image, (center[0] - 5, center[1]), (center[0] + 5, center[1]), (0, 0, 255), 1)
                 cv2.line(image, (center[0], center[1] - 5), (center[0], center[1] + 5), (0, 0, 255), 1)
-
-                # Calculate the Euclidean distance from the starting point to each point on the path
-                distances = np.sqrt((x_path - center[0])**2 + (y_path - center[1])**2)
-
-                # Find the index of the minimum distance
-                idx = np.argmin(distances)
-
-                # The nearest point on the path is then
-                x_nearest, y_nearest = x_path[idx], y_path[idx]
-
-                # Draw a line from the point to the nearest point on the path
-                cv2.line(image, (center[0], center[1]), (x_nearest, y_nearest), (0, 255, 0), 1)
-
-                # Calculate the Euclidean distance
-                euclidean_distance = np.sqrt((x_nearest - center[0])**2 + (y_nearest - center[1])**2)
-
-                # Display the Euclidean distance next to the line
-                cv2.putText(image, f'Distance: {euclidean_distance:.2f}', (center[0], center[1] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.3, (255, 255, 255), 1)
-
-                # Calculate the x and y distances
-                x_distance = x_nearest - center[0]
-                y_distance = -(y_nearest - center[1])
-
-                # Display the x and y distances
-                cv2.putText(image, f'X Distance: {x_distance:.2f}', (center[0], center[1] - 30), cv2.FONT_HERSHEY_SIMPLEX, 0.3, (255, 255, 255), 1)
-                cv2.putText(image, f'Y Distance: {y_distance:.2f}', (center[0], center[1] - 50), cv2.FONT_HERSHEY_SIMPLEX, 0.3, (255, 255, 255), 1)
-
-                # If the Euclidean distance is less than a certain threshold, consider the point as visited
-                if euclidean_distance < 20:
-                    # Draw the visited point in yellow
-                    cv2.circle(processed_image,(x_nearest, y_nearest),3,(70,70,70),-1)
-                    # Remove the point from the path
-                    x_path = np.delete(x_path, idx)
-                    y_path = np.delete(y_path, idx)
 
                 # Calculate velocity
                 if prev_center is not None:
@@ -269,7 +274,6 @@ if __name__ == "__main__":
                     if len(velocities) > N:
                         velocities.pop(0)
                     velocity = [sum(v[i] for v in velocities) / len(velocities) for i in range(2)]
-                    
                 prev_center = center
                 prev_time = time.time()
 
@@ -277,8 +281,57 @@ if __name__ == "__main__":
                 scale = 0.1  # Adjust this value to change the scale of the velocity vector
                 end_point = (int(center[0] + velocity[0]*scale), int(center[1] + velocity[1]*scale))
                 cv2.arrowedLine(image, center, end_point, (0, 255, 0), 2)
+            
+            if start_solve == True:
 
+                # The nearest point on the path is then
+                x_nearest, y_nearest = x_path[0], y_path[0]
 
+                # Draw a line from the point to the nearest point on the path
+                cv2.line(image, (center[0], center[1]), (x_nearest, y_nearest), (0, 255, 0), 1)
+
+                # Calculate the Euclidean distance to nearest point
+                euclidean_distance = np.sqrt((x_nearest - center[0])**2 + (y_nearest - center[1])**2)
+
+                # Calculate the Euclidean distance to all points
+                euclidean_distances = np.array([np.sqrt((x - center[0])**2 + (y - center[1])**2) for x, y in zip(x_path, y_path)])
+
+                # Display the Euclidean distance next to the line
+                cv2.putText(image, f'Distance: {euclidean_distance:.2f}', (center[0], center[1] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.3, (255, 255, 255), 1)
+
+                # Calculate the x and y distances
+                x_distance = (x_nearest - center[0])
+                y_distance = -(y_nearest - center[1])
+
+                # Display the x and y distances
+                cv2.putText(image, f'X Distance: {x_distance:.2f}', (center[0], center[1] - 30), cv2.FONT_HERSHEY_SIMPLEX, 0.3, (255, 255, 255), 1)
+                cv2.putText(image, f'Y Distance: {y_distance:.2f}', (center[0], center[1] - 50), cv2.FONT_HERSHEY_SIMPLEX, 0.3, (255, 255, 255), 1)
+
+                # If the Euclidean distance is less than a certain threshold, consider the point as visited
+                close_points = np.where(euclidean_distances < 40)[0]
+                if close_points.size > 0:
+                    first_close_point = close_points[0]
+                    for i in range(first_close_point + 1):
+                        cv2.circle(processed_image,(x_path[i], y_path[i]),3,(70,70,70),-1)
+                    # Remove the point from the path
+                    x_path = np.delete(x_path, slice(0, first_close_point + 1))
+                    y_path = np.delete(y_path, slice(0, first_close_point + 1))
+
+                dt = time.time() - interval_time
+                interval_time = time.time()
+                x_integral += x_distance * dt
+                y_integral += y_distance * dt
+                PDx = PIDcontrol(KpX, KiX, KdX, x_distance, x_integral, velocity[0])
+                PDy = PIDcontrol(KpY, KiY, KdY, y_distance, y_integral, velocity[1])
+                motorx = max(min(PDx, 450), -450)
+                motory = max(min(PDy, 450), -450)
+                print(x_distance,y_distance)
+                print(x_integral,y_integral)
+                print(motorx,motory)
+                send_position('A', motory)
+                send_position('B', motorx)
+                interval_time = time.time()
+            
             cv2.imshow('Working Image', image)
 
         #cv2.imshow('Video Feed', frame)
@@ -289,4 +342,42 @@ if __name__ == "__main__":
     # Release the video capture and close windows
     cap.release()
     cv2.destroyAllWindows()
+
+def start_solve():
+    global x_integral
+    global y_integral
+    global start_solve
+    start_solve = True
+    x_integral = 0
+    y_integral = 0
+
+def PIDcontrol(Kp,Ki,Kd,distance,integral,velocity):
+    return Kp*distance + Ki*integral + Kd*(-velocity)
+
+def send_position(motor, position):
+    """
+    Sends a motor position command to the Arduino.
+    :param motor: 'A' or 'B', indicating which motor to control
+    :param position: The desired position as an integer
+    """
+    command = f"{motor}{position}\n"  # Format the command string
+    ser.write(command.encode())  # Encode and send the command
+    print(f"Sent command: {command}")
+
+def create_gui():
+    root = tk.Tk()
+    root.title("Main")
+
+    root.geometry("200x200")
+
+    button1 = tk.Button(root, text="Start Image Processing", command=lambda: threading.Thread(target=run_image_processing).start())
+    button1.pack()
+    button2 = tk.Button(root, text="Start Solve", command=start_solve)
+    button2.pack()
+
+    root.mainloop()
+
+if __name__ == "__main__":
+    create_gui()
+    
 
