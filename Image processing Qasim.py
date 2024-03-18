@@ -146,14 +146,19 @@ def run_image_processing():
                     if len(velocities) > N:
                         velocities.pop(0)
                     velocity = [sum(v[i] for v in velocities) / len(velocities) for i in range(2)]
+
+                    # Determine if the velocity is below the threshold
+                    if abs(velocity[0]) < velocity_threshold and abs(velocity[1]) < velocity_threshold:
+                        # Here, instead of immediately inducing vibration, check if 5 seconds have passed
+                        if (time.time() - ball_last_moving_time) > stuck_duration_threshold:
+                            induce_vibration()
+                            ball_last_moving_time = time.time()  # Reset the timer after inducing vibration
+                    else:
+                        ball_last_moving_time = time.time()  # Update the time if the ball is moving sufficiently
+
                 
-                if abs(velocity[0]) < velocity_threshold and abs(velocity[1]) < velocity_threshold:
-                    if time.time() - ball_last_moving_time > stuck_duration_threshold:
-                    induce_vibration()
-                    ball_last_moving_time = time.time() 
-                
-                prev_center = center
-                prev_time = time.time()
+                    prev_center = center
+                    prev_time = time.time()
 
                 # Draw velocity vector
                 scale = 0.1  # Adjust this value to change the scale of the velocity vector
