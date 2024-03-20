@@ -3,7 +3,6 @@ import numpy as np
 from image_rectification import rectify
 from skimage.morphology import skeletonize
 from skimage import img_as_ubyte
-from pidtune import *
 import time
 import serial
 import tkinter as tk
@@ -34,7 +33,7 @@ def define_path(contours,edges):
     y, x = np.where(skeleton == 255)
 
     # Create an array of evenly spaced indices
-    indices = np.linspace(0, len(x) - 1, 100,dtype=int)
+    indices = np.linspace(0, len(x) - 1, 50,dtype=int) #number of checkpoints
 
     # Sample the x and y arrays with these indices
     sample_x = x[indices]
@@ -131,11 +130,17 @@ def define_wall(contours):
 def locate_ball(frame,edges):
     # Convert the frame to HSV
     hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-    # Threshold the HSV image to get only red colors
-    lower_red1 = np.array([0, 120, 60])
-    upper_red1 = np.array([10, 255, 255])
-    lower_red2 = np.array([170, 120, 60])
-    upper_red2 = np.array([180, 255, 255])
+
+    #Threshold the HSV image to get only red colors
+    # lower_red1 = np.array([0, 120, 60])
+    # upper_red1 = np.array([10, 255, 255])
+    # lower_red2 = np.array([170, 120, 60])
+    # upper_red2 = np.array([180, 255, 255])
+
+    lower_red1 = np.array([0, 60, 70])
+    upper_red1 = np.array([5, 200, 210])
+    lower_red2 = np.array([170, 80, 80])
+    upper_red2 = np.array([180, 190, 200])
 
     mask1 = cv2.inRange(hsv, lower_red1, upper_red1)
     mask2 = cv2.inRange(hsv, lower_red2, upper_red2)
@@ -187,9 +192,11 @@ def run_image_processing():
     except:
         print("Error: Could not connect to the camera or the Arduino")
         pass
+
     # Start the timer
     start_time = time.time()
     interval_time = time.time()
+    checkpoint_time = time.time()
     # Flag to indicate if the image has been captured
     image_captured = False
 
@@ -202,10 +209,12 @@ def run_image_processing():
     N = 1 # Number of frames to consider for the moving average
     velocities = []
     prev_time = time.time()
-    KpX,KiX,KdX = 1.1,5.5,0.9
-    KpY,KiY,KdY = 2.0,5.5,-1.6
+    KpX,KiX,KdX = 10,0,1
+    KpY,KiY,KdY = 0.8,0.3,0.5
     x_integral = 0
     y_integral = 0
+    x_distance_prev = 0
+    y_distance_prev = 0
     start_solve = False
 
     while True:
@@ -253,10 +262,11 @@ def run_image_processing():
             if ball_contours is not None:
                 image = processed_image.copy()
 
-                # Find the smallest enclosing circle
-                (x_ball, y_ball), radius = cv2.minEnclosingCircle(ball_contours)
-                center = (int(x_ball), int(y_ball))
-                radius = int(radius)
+                # Calculate moments of the contours
+                M = cv2.moments(ball_contours)
+
+                # Calculate the center of the contours
+                center = (int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"]))
 
                 # Draw the smallest enclosing circle on the frame
                 cv2.circle(image, center, 13, (0, 0, 255), thickness=2)
@@ -267,6 +277,8 @@ def run_image_processing():
 
                 # Calculate velocity
                 if prev_center is not None:
+                    prev_center = (int(center[0] + prev_center[0])*0.5 , int(center[1] + prev_center[1])*0.5) #qiuck fix
+
                     dx = center[0] - prev_center[0]
                     dy = center[1] - prev_center[1]
                     dt = time.time() - prev_time  # Time difference in seconds
@@ -276,7 +288,7 @@ def run_image_processing():
                     velocity = [sum(v[i] for v in velocities) / len(velocities) for i in range(2)]
                 prev_center = center
                 prev_time = time.time()
-
+           
                 # Draw velocity vector
                 scale = 0.1  # Adjust this value to change the scale of the velocity vector
                 end_point = (int(center[0] + velocity[0]*scale), int(center[1] + velocity[1]*scale))
@@ -308,25 +320,41 @@ def run_image_processing():
                 cv2.putText(image, f'Y Distance: {y_distance:.2f}', (center[0], center[1] - 50), cv2.FONT_HERSHEY_SIMPLEX, 0.3, (255, 255, 255), 1)
 
                 # If the Euclidean distance is less than a certain threshold, consider the point as visited
-                close_points = np.where(euclidean_distances < 40)[0]
-                if close_points.size > 0:
-                    first_close_point = close_points[0]
-                    for i in range(first_close_point + 1):
-                        cv2.circle(processed_image,(x_path[i], y_path[i]),3,(70,70,70),-1)
-                    # Remove the point from the path
-                    x_path = np.delete(x_path, slice(0, first_close_point + 1))
-                    y_path = np.delete(y_path, slice(0, first_close_point + 1))
+                if time.time() - checkpoint_time >= 1:
+                    close_points = np.where(euclidean_distances < 30)[0]
+                    if close_points.size > 0:
+                        first_close_point = close_points[0]
+                        for i in range(first_close_point + 1):
+                            cv2.circle(processed_image,(x_path[i], y_path[i]),3,(70,70,70),-1)
+                        # Remove the point from the path
+                        x_path = np.delete(x_path, slice(0, first_close_point + 1))
+                        y_path = np.delete(y_path, slice(0, first_close_point + 1))
+                    checkpoint_time = time.time()
 
                 dt = time.time() - interval_time
                 interval_time = time.time()
                 x_integral += x_distance * dt
+                if x_integral > 500: #Saturation code for Ki values
+                    x_integral = 500
+                elif x_integral < -500:
+                    x_integral = -500
                 y_integral += y_distance * dt
-                PDx = PIDcontrol(KpX, KiX, KdX, x_distance, x_integral, velocity[0])
-                PDy = PIDcontrol(KpY, KiY, KdY, y_distance, y_integral, velocity[1])
-                motorx = max(min(PDx, 450), -450)
-                motory = max(min(PDy, 450), -450)
+                if y_integral > 500:
+                    y_integral = 500
+                elif y_integral < -500:
+                    y_integral = -500
+                x_derivative = (x_distance-x_distance_prev)/dt
+                y_derivative = (y_distance-y_distance_prev)/dt
+                PDx = PIDcontrol(KpX, KiX, KdX, x_distance, x_integral, x_derivative)
+                PDy = PIDcontrol(KpY, KiY, KdY, y_distance, y_integral, y_derivative)
+                print(x_distance_prev,y_distance_prev)
+                x_distance_prev = x_distance
+                y_distance_prev = y_distance
+                motorx = max(min(PDx, 150), -150)
+                motory = max(min(PDy, 150), -150)
                 print(x_distance,y_distance)
                 print(x_integral,y_integral)
+                print('de',x_derivative,y_derivative)
                 print(motorx,motory)
                 send_position('A', motory)
                 send_position('B', motorx)
@@ -351,8 +379,16 @@ def start_solve():
     x_integral = 0
     y_integral = 0
 
-def PIDcontrol(Kp,Ki,Kd,distance,integral,velocity):
-    return Kp*distance + Ki*integral + Kd*(-velocity)
+def PIDcontrol(Kp,Ki,Kd,distance,integral,derivative):
+    
+    e = (Kp)*distance + (Ki)*integral + (Kd)*(derivative)
+    if e < 0:
+        e -= 50
+    elif e > 0:
+        e += 50
+    else:
+        e = 0
+    return e
 
 def send_position(motor, position):
     """
@@ -380,4 +416,3 @@ def create_gui():
 if __name__ == "__main__":
     create_gui()
     
-

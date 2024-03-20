@@ -54,7 +54,7 @@ def run_image_processing():
     global ser
     try:
         # Initialize serial connection
-        ser = serial.Serial('COM3', 9600)
+        ser = serial.Serial('COM4', 9600)
         # Connect to webcam (0 = default cam)
         cap = cv2.VideoCapture(0,cv2.CAP_DSHOW)
         # Set the resolution to 720p
@@ -62,6 +62,8 @@ def run_image_processing():
         cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
         # Set the frame rate to 60fps
         cap.set(cv2.CAP_PROP_FPS, 30)
+        
+        send_position(0, 0)
     except:
         print("Error: Could not connect to the camera or the Arduino")
         pass
@@ -172,13 +174,12 @@ def run_image_processing():
                 y_integral += y_distance * dt
                 PDx = PIDcontrol(KpX, KiX, KdX, x_distance, x_integral, velocity[0])
                 PDy = PIDcontrol(KpY, KiY, KdY, y_distance, y_integral, velocity[1])
-                motorx = max(min(PDx, 450), -450)
-                motory = max(min(PDy, 450), -450)
+                motorx = max(min(PDx, 60), -60)
+                motory = max(min(PDy, 60), -60)
                 print(x_distance,y_distance)
                 print(x_integral,y_integral)
                 print(motorx,motory)
-                send_position('A', motory)
-                send_position('B', motorx)
+                send_position(motory, motory)
                 interval_time = time.time()
             
             cv2.namedWindow("Working Image")
@@ -207,15 +208,12 @@ def mouse_callback(event, x, y, flags, param):
 def PIDcontrol(Kp,Ki,Kd,distance,integral,velocity):
     return (Kp.get())*distance + (Ki.get())*integral + float(Kd.get())*(-velocity)
 
-def send_position(motor, position):
-    """
-    Sends a motor position command to the Arduino.
-    :param motor: 'A' or 'B', indicating which motor to control
-    :param position: The desired position as an integer
-    """
-    command = f"{motor}{position}\n"  # Format the command string
-    ser.write(command.encode())  # Encode and send the command
-    print(f"Sent command: {command}")
+def send_position(angle1, angle2):
+    if -60 <= angle1 <= 60 and -60 <= angle2 <= 60:
+        angle1 = angle1 + 60
+        angle2 = angle2 + 60
+        ser.write(f"{angle1},{angle2}".encode())
+        print(f"Sent command: {angle1},{angle2}")
 
 def create_gui():
     global KpX, KiX, KdX, KpY, KiY, KdY
@@ -228,19 +226,19 @@ def create_gui():
     button2.pack()
 
     # Create sliders for KpX, KiX, KdX, KpY, KiY, KdY
-    KpX = tk.DoubleVar(value=1.2)
+    KpX = tk.DoubleVar(value=1.1)
     tk.Scale(root, from_=0, to=20, resolution=0.1, length=400, orient=tk.HORIZONTAL, label="KpX", variable=KpX).pack()
 
-    KiX = tk.DoubleVar(value=3.8)
+    KiX = tk.DoubleVar(value=5.5)
     tk.Scale(root, from_=0, to=20, resolution=0.1, length=400, orient=tk.HORIZONTAL, label="KiX", variable=KiX).pack()
 
-    KdX = tk.DoubleVar(value=0.8)
+    KdX = tk.DoubleVar(value=0.9)
     tk.Scale(root, from_=0, to=20, resolution=0.1, length=400, orient=tk.HORIZONTAL, label="KdX", variable=KdX).pack()
 
     KpY = tk.DoubleVar(value=2.0)
     tk.Scale(root, from_=0, to=20, resolution=0.1, length=400, orient=tk.HORIZONTAL, label="KpY", variable=KpY).pack()
 
-    KiY = tk.DoubleVar(value=2.8)
+    KiY = tk.DoubleVar(value=5.5)
     tk.Scale(root, from_=0, to=20, resolution=0.1, length=400, orient=tk.HORIZONTAL, label="KiY", variable=KiY).pack()
 
     KdY = tk.DoubleVar(value=-1.6)
