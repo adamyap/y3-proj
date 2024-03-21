@@ -54,7 +54,7 @@ def run_image_processing():
     global ser
     try:
         # Initialize serial connection
-        ser = serial.Serial('COM4', 9600)
+        ser = serial.Serial('COM3', 9600)
         # Connect to webcam (0 = default cam)
         cap = cv2.VideoCapture(0,cv2.CAP_DSHOW)
         # Set the resolution to 720p
@@ -62,8 +62,7 @@ def run_image_processing():
         cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
         # Set the frame rate to 60fps
         cap.set(cv2.CAP_PROP_FPS, 30)
-        
-        send_position(0, 0)
+
     except:
         print("Error: Could not connect to the camera or the Arduino")
         pass
@@ -79,14 +78,14 @@ def run_image_processing():
 
     prev_center = None
     velocity = [0, 0]
-    N = 1  # Number of frames to consider for the moving average
+    N = 1 # Number of frames to consider for the moving average
     velocities = []
     prev_time = time.time()
     x_integral = 0
     y_integral = 0
-    previous_center = None
+    x_distance_prev = 0
+    y_distance_prev = 0
     start_solve = False
-
     while True:
         # Resize the frame to desired size
         try:
@@ -169,17 +168,30 @@ def run_image_processing():
                 cv2.putText(image, f'Y Distance: {y_distance:.2f}', (center[0], center[1] - 50), cv2.FONT_HERSHEY_SIMPLEX, 0.3, (255, 255, 255), 1)
 
                 dt = time.time() - interval_time
-                interval_time = time.time()
                 x_integral += x_distance * dt
+                if x_integral > 60: #Saturation code for Ki values
+                    x_integral = 60
+                elif x_integral < -60:
+                    x_integral = -60
                 y_integral += y_distance * dt
-                PDx = PIDcontrol(KpX, KiX, KdX, x_distance, x_integral, velocity[0])
-                PDy = PIDcontrol(KpY, KiY, KdY, y_distance, y_integral, velocity[1])
+                if y_integral > 60:
+                    y_integral = 60
+                elif y_integral < -60:
+                    y_integral = -60
+                x_derivative = (x_distance-x_distance_prev)/dt
+                y_derivative = (y_distance-y_distance_prev)/dt
+                PDx = PIDcontrol(KpX, KiX, KdX, x_distance, x_integral, x_derivative)
+                PDy = PIDcontrol(KpY, KiY, KdY, y_distance, y_integral, y_derivative)
+                print(x_distance_prev,y_distance_prev)
+                x_distance_prev = x_distance
+                y_distance_prev = y_distance
                 motorx = max(min(PDx, 60), -60)
                 motory = max(min(PDy, 60), -60)
-                print(x_distance,y_distance)
-                print(x_integral,y_integral)
+                print('p',x_distance,y_distance)
+                print('i ',x_integral,y_integral)
+                print('d ',x_derivative,y_derivative)
                 print(motorx,motory)
-                send_position(motory, motory)
+                send_position(motorx,motory)
                 interval_time = time.time()
             
             cv2.namedWindow("Working Image")
@@ -205,14 +217,16 @@ def mouse_callback(event, x, y, flags, param):
         global target_point
         target_point = (x, y)
 
-def PIDcontrol(Kp,Ki,Kd,distance,integral,velocity):
-    return (Kp.get())*distance + (Ki.get())*integral + float(Kd.get())*(-velocity)
+def PIDcontrol(Kp,Ki,Kd,distance,integral,derivative):
+    e = (Kp.get())*distance + (Ki.get())*integral + (Kd.get())*(derivative)
+    return e
 
 def send_position(angle1, angle2):
     if -60 <= angle1 <= 60 and -60 <= angle2 <= 60:
         angle1 = angle1 + 60
         angle2 = angle2 + 60
-        ser.write(f"{angle1},{angle2}".encode())
+        ser.write(f"x,{angle1}".encode())
+        ser.write(f"y,{angle2}".encode())
         print(f"Sent command: {angle1},{angle2}")
 
 def create_gui():
@@ -226,23 +240,23 @@ def create_gui():
     button2.pack()
 
     # Create sliders for KpX, KiX, KdX, KpY, KiY, KdY
-    KpX = tk.DoubleVar(value=1.1)
-    tk.Scale(root, from_=0, to=20, resolution=0.1, length=400, orient=tk.HORIZONTAL, label="KpX", variable=KpX).pack()
+    KpX = tk.DoubleVar(value=0.1)
+    tk.Scale(root, from_=0, to=1, resolution=0.01, length=400, orient=tk.HORIZONTAL, label="KpX", variable=KpX).pack()
 
-    KiX = tk.DoubleVar(value=5.5)
-    tk.Scale(root, from_=0, to=20, resolution=0.1, length=400, orient=tk.HORIZONTAL, label="KiX", variable=KiX).pack()
+    KiX = tk.DoubleVar(value=0)
+    tk.Scale(root, from_=0, to=1, resolution=0.01, length=400, orient=tk.HORIZONTAL, label="KiX", variable=KiX).pack()
 
-    KdX = tk.DoubleVar(value=0.9)
-    tk.Scale(root, from_=0, to=20, resolution=0.1, length=400, orient=tk.HORIZONTAL, label="KdX", variable=KdX).pack()
+    KdX = tk.DoubleVar(value=0.02)
+    tk.Scale(root, from_=0, to=1, resolution=0.01, length=400, orient=tk.HORIZONTAL, label="KdX", variable=KdX).pack()
 
-    KpY = tk.DoubleVar(value=2.0)
-    tk.Scale(root, from_=0, to=20, resolution=0.1, length=400, orient=tk.HORIZONTAL, label="KpY", variable=KpY).pack()
+    KpY = tk.DoubleVar(value=0.1)
+    tk.Scale(root, from_=0, to=1, resolution=0.01, length=400, orient=tk.HORIZONTAL, label="KpY", variable=KpY).pack()
 
-    KiY = tk.DoubleVar(value=5.5)
-    tk.Scale(root, from_=0, to=20, resolution=0.1, length=400, orient=tk.HORIZONTAL, label="KiY", variable=KiY).pack()
+    KiY = tk.DoubleVar(value=0)
+    tk.Scale(root, from_=0, to=1, resolution=0.01, length=400, orient=tk.HORIZONTAL, label="KiY", variable=KiY).pack()
 
-    KdY = tk.DoubleVar(value=-1.6)
-    tk.Scale(root, from_=0, to=-20, resolution=0.1, length=400, orient=tk.HORIZONTAL, label="KdY", variable=KdY).pack()
+    KdY = tk.DoubleVar(value=0.02)
+    tk.Scale(root, from_=0, to=1, resolution=0.01, length=400, orient=tk.HORIZONTAL, label="KdY", variable=KdY).pack()
 
     root.mainloop()
 

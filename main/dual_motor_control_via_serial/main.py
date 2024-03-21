@@ -7,6 +7,7 @@ import time
 import serial
 import tkinter as tk
 import threading
+import random
 
 def define_path(contours,edges):
     # Define the minimum area for a filled contour
@@ -33,7 +34,7 @@ def define_path(contours,edges):
     y, x = np.where(skeleton == 255)
 
     # Create an array of evenly spaced indices
-    indices = np.linspace(0, len(x) - 1, 50,dtype=int) #number of checkpoints
+    indices = np.linspace(0, len(x) - 1, 100,dtype=int) #number of checkpoints
 
     # Sample the x and y arrays with these indices
     sample_x = x[indices]
@@ -189,6 +190,7 @@ def run_image_processing():
         cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
         # Set the frame rate to 60fps
         cap.set(cv2.CAP_PROP_FPS, 30)
+        send_position(0,0)
     except:
         print("Error: Could not connect to the camera or the Arduino")
         pass
@@ -209,8 +211,8 @@ def run_image_processing():
     N = 1 # Number of frames to consider for the moving average
     velocities = []
     prev_time = time.time()
-    KpX,KiX,KdX = 10,0,1
-    KpY,KiY,KdY = 0.8,0.3,0.5
+    KpX,KiX,KdX = 0.1,0.2,0.03 #0.1 0.2 0.03
+    KpY,KiY,KdY = 0.2,0.2,0.03 #0.2 0.2 0.03
     x_integral = 0
     y_integral = 0
     x_distance_prev = 0
@@ -320,8 +322,8 @@ def run_image_processing():
                 cv2.putText(image, f'Y Distance: {y_distance:.2f}', (center[0], center[1] - 50), cv2.FONT_HERSHEY_SIMPLEX, 0.3, (255, 255, 255), 1)
 
                 # If the Euclidean distance is less than a certain threshold, consider the point as visited
-                if time.time() - checkpoint_time >= 1:
-                    close_points = np.where(euclidean_distances < 30)[0]
+                if time.time() - checkpoint_time >= 0.1:
+                    close_points = np.where(euclidean_distances < 35)[0]
                     if close_points.size > 0:
                         first_close_point = close_points[0]
                         for i in range(first_close_point + 1):
@@ -332,33 +334,37 @@ def run_image_processing():
                     checkpoint_time = time.time()
 
                 dt = time.time() - interval_time
-                interval_time = time.time()
-                x_integral += x_distance * dt
-                if x_integral > 500: #Saturation code for Ki values
-                    x_integral = 500
-                elif x_integral < -500:
-                    x_integral = -500
-                y_integral += y_distance * dt
-                if y_integral > 500:
-                    y_integral = 500
-                elif y_integral < -500:
-                    y_integral = -500
-                x_derivative = (x_distance-x_distance_prev)/dt
-                y_derivative = (y_distance-y_distance_prev)/dt
-                PDx = PIDcontrol(KpX, KiX, KdX, x_distance, x_integral, x_derivative)
-                PDy = PIDcontrol(KpY, KiY, KdY, y_distance, y_integral, y_derivative)
-                print(x_distance_prev,y_distance_prev)
-                x_distance_prev = x_distance
-                y_distance_prev = y_distance
-                motorx = max(min(PDx, 150), -150)
-                motory = max(min(PDy, 150), -150)
-                print(x_distance,y_distance)
-                print(x_integral,y_integral)
-                print('de',x_derivative,y_derivative)
-                print(motorx,motory)
-                send_position('A', motory)
-                send_position('B', motorx)
-                interval_time = time.time()
+                if dt > 0.01:
+                    x_integral += x_distance * dt
+                    if x_integral > 500: #Saturation code for Ki values
+                        x_integral = 500
+                    elif x_integral < -500:
+                        x_integral = -500
+                    y_integral += y_distance * dt
+                    if y_integral > 500:
+                        y_integral = 500
+                    elif y_integral < -500:
+                        y_integral = -500
+                    x_derivative = (x_distance-x_distance_prev)/dt
+                    y_derivative = (y_distance-y_distance_prev)/dt
+                    PDx = PIDcontrol(KpX, KiX, KdX, x_distance, x_integral, x_derivative)
+                    PDy = PIDcontrol(KpY, KiY, KdY, y_distance, y_integral, y_derivative)
+                    print(x_distance_prev,y_distance_prev)
+                    x_distance_prev = x_distance
+                    y_distance_prev = y_distance
+                    motorx = max(min(PDx, 60), -60)
+                    motory = max(min(PDy, 60), -60)
+                        # Add a small random offset to the motor commands
+                    if x_derivative < 15 and y_derivative < 15:
+                        jitter = 8  # Adjust this value to change the amount of jitter
+                        motorx += random.uniform(-jitter, jitter)
+                        motory += random.uniform(-jitter, jitter)
+                    print(x_distance,y_distance)
+                    print(x_integral,y_integral)
+                    print('de',x_derivative,y_derivative)
+                    print(motorx,motory)
+                    send_position(motorx,motory)
+                    interval_time = time.time()
             
             cv2.imshow('Working Image', image)
 
@@ -380,25 +386,16 @@ def start_solve():
     y_integral = 0
 
 def PIDcontrol(Kp,Ki,Kd,distance,integral,derivative):
-    
     e = (Kp)*distance + (Ki)*integral + (Kd)*(derivative)
-    if e < 0:
-        e -= 50
-    elif e > 0:
-        e += 50
-    else:
-        e = 0
     return e
 
-def send_position(motor, position):
-    """
-    Sends a motor position command to the Arduino.
-    :param motor: 'A' or 'B', indicating which motor to control
-    :param position: The desired position as an integer
-    """
-    command = f"{motor}{position}\n"  # Format the command string
-    ser.write(command.encode())  # Encode and send the command
-    print(f"Sent command: {command}")
+def send_position(angle1, angle2):
+    if -60 <= angle1 <= 60 and -60 <= angle2 <= 60:
+        angle1 = angle1 + 60
+        angle2 = angle2 + 60
+        ser.write(f"x,{angle1}".encode())
+        ser.write(f"y,{angle2}".encode())
+        print(f"Sent command: {angle1},{angle2}")
 
 def create_gui():
     root = tk.Tk()
