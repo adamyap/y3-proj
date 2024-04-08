@@ -54,11 +54,10 @@ if __name__ == "__main__":
         while True:
             send_position('A', 200)
             send_position('B', -200)
-            time.sleep(0.2)
+            time.sleep(0.1)
             send_position('A', -200)
             send_position('B', 200)
-            
-            time.sleep(0.2)  # Adjust delay as necessary
+            time.sleep(0.1)  # Adjust delay as necessary
     except KeyboardInterrupt:
         print("Program terminated by user.")
     finally:
