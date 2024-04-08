@@ -26,10 +26,8 @@ def stop_timer():
 def update_timer():
     if timer_running:
         elapsed_time = time.time() - start_time
-        # Format the time as you prefer. Here, it's formatted as hours:minutes:seconds
         formatted_time = time.strftime("%H:%M:%S", time.gmtime(elapsed_time))
         timer_label.config(text=formatted_time)
-        # Schedule the `update_timer` function to be called after 1000ms (1 second)
         timer_label.after(1000, update_timer)
 
 def define_path(contours,edges):
