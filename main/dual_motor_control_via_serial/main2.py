@@ -401,7 +401,7 @@ def run_image_processing():
     cap.release()
     cv2.destroyAllWindows()
 
-def start_solve():
+def start_solved():
     global x_integral
     global y_integral
     global start_solve
@@ -433,7 +433,7 @@ def create_gui():
     button1 = tk.Button(root, text="Start Image Processing", command=lambda: threading.Thread(target=run_image_processing).start())
     button1.pack()
    # button2 = tk.Button(root, text="Start Solve", command=start_solve)
-    button2 = tk.Button(root, text="Start Solve", command=lambda: [start_solve(), start_timer()]) 
+    button2 = tk.Button(root, text="Start Solve", command=lambda: [start_solved(), start_timer()]) 
     button2.pack()
 
     root.mainloop()
