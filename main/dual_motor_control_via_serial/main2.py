@@ -14,7 +14,7 @@ start_time = None
 timer_label= None
 
 def start_timer():
-    global timer_running, start_time
+    global timer_running, start_time, timer_label
     if not timer_running:
         start_time = time.time()
         timer_running = True
@@ -437,6 +437,10 @@ def create_gui():
     button2.pack()
 
     root.mainloop()
+
+def start_solve():
+    global start_time, timer_running
+    start_timer()
 
 if __name__ == "__main__":
     create_gui()
