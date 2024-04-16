@@ -11,6 +11,7 @@ import threading
 
 timer_running = False
 start_time = None
+timer_label = None
 
 def start_timer():
     global timer_running, start_time
@@ -395,6 +396,7 @@ def create_gui():
     timer_label.pack()
 
     button1 = tk.Button(root, text="Start Image Processing", command=lambda: threading.Thread(target=run_image_processing).start())
+    #button1 = tk.Button(root, text="Start Image Processing", command=lambda: threading.Thread(target=run_image_processing).start())
     button1.pack()
     button2 = tk.Button(root, text="Start Solve", command=lambda: [start_solve(), start_timer()])
     button2.pack()
