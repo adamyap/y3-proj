@@ -20,17 +20,20 @@ def start_timer():
         timer_running = True
         update_timer()
 
-def stop_timer():
-    global timer_running
-    timer_running = False
-    update_timer()
+#def stop_timer():
+ #   global timer_running
+    #timer_running = False
+   # update_timer()
 
 def update_timer():
-    global timer_label, start_time
+    global timer_label, start_time, timer_running
     if timer_running:
+        # Calculate elapsed time
         elapsed_time = time.time() - start_time
+        # Format and set the timer label text
         formatted_time = time.strftime("%H:%M:%S", time.gmtime(elapsed_time))
         timer_label.config(text=formatted_time)
+        # Schedule the next update
         timer_label.after(1000, update_timer)
 
 def define_path(contours,edges):
@@ -422,6 +425,7 @@ def send_position(angle1, angle2):
         print(f"Sent command: {angle1},{angle2}")
 
 def create_gui():
+    global timer_label
     root = tk.Tk()
     root.title("Main")
 
