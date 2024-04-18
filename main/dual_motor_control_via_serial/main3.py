@@ -320,6 +320,24 @@ def run_image_processing():
             
             if start_solve == True:
 
+                hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+
+                # Define the color range for the blue marking
+                lower_blue = np.array([110, 50, 50])
+                upper_blue = np.array([130, 255, 255])
+
+                # Threshold the HSV image to get only blue colors
+                mask = cv2.inRange(hsv, lower_blue, upper_blue)
+
+                # Find contours in the mask
+                contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+                # Check if the center of the ball is within any of the contours
+                for contour in contours:
+                    if cv2.pointPolygonTest(contour, (center[0], center[1]), False) >= 0:
+                        print("Congratulations! The ball has reached the end of the maze.")
+                        break
+
                 # The nearest point on the path is then
                 x_nearest, y_nearest = x_path[0], y_path[0]
 

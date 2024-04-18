@@ -11,7 +11,8 @@ import random
 
 timer_running = False
 start_time = None
-timer_label= None
+timer_label = None
+end_reached = False
 
 def start_timer():
     global timer_running, start_time, timer_label
@@ -21,8 +22,11 @@ def start_timer():
         update_timer()
         
 def update_timer():
-    global timer_label, start_time, timer_running
+    global timer_label, start_time, timer_running, end_reached
     if timer_running:
+        if end_reached:
+            timer_running = False
+            return
         elapsed_time = time.time() - start_time
         minutes = int(elapsed_time / 60)
         seconds = int(elapsed_time) % 60
@@ -197,11 +201,27 @@ def locate_ball(frame,edges):
 
     return hull
 
+def define_end(frame):
+    hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+
+    # Define the color range for the blue marking
+    lower_blue = np.array([100, 150, 100])
+    upper_blue = np.array([110, 255, 255])
+
+    # Threshold the HSV image to get only blue colors
+    mask = cv2.inRange(hsv, lower_blue, upper_blue)
+
+    # Find contours in the mask
+    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    return contours
+
 def run_image_processing():
     global x_integral
     global y_integral
     global start_solve
     global ser
+    global end_reached
     try:
         # Initialize serial connection
         ser = serial.Serial('COM3', 9600)
@@ -219,7 +239,6 @@ def run_image_processing():
 
     # Start the timer
     start_time = time.time()
-    interval_time = time.time()
     checkpoint_time = time.time()
     # Flag to indicate if the image has been captured
     image_captured = False
@@ -240,8 +259,10 @@ def run_image_processing():
     x_distance_prev = 0
     y_distance_prev = 0
     start_solve = False
+    interval_time = time.time()
 
-    while True:
+
+    while not end_reached:
         # Resize the frame to desired size
         try:
             # Capture frame-by-frame
@@ -276,6 +297,9 @@ def run_image_processing():
             # Draw the path contour
             for contour in path_contours:
                 cv2.drawContours(image, [contour], -1, (0, 255, 0), 1)
+            end_contours = define_end(image)
+            for cnt in end_contours:
+                cv2.drawContours(image, [cnt], -1, (255, 0, 0), -1)
 
             processed_image = image.copy()
             cv2.imshow('Working Image', image)
@@ -319,6 +343,19 @@ def run_image_processing():
                 cv2.arrowedLine(image, center, end_point, (0, 255, 0), 2)
             
             if start_solve == True:
+
+                # Check if the center of the ball is within the end
+                for contour in end_contours:
+                    if cv2.pointPolygonTest(contour, (center[0], center[1]), False) >= 0:
+                        print("Congratulations! The ball has reached the end of the maze.")
+                        end_reached = True
+                        break
+                
+                if not end_reached:
+                    if x_path.size == 0 or y_path.size == 0:
+                        print("Congratulations! The ball has reached the end of the maze.")
+                        end_reached = True
+                        break
 
                 # The nearest point on the path is then
                 x_nearest, y_nearest = x_path[0], y_path[0]
@@ -371,7 +408,7 @@ def run_image_processing():
                     y_derivative = (y_distance-y_distance_prev)/dt
                     PDx = PIDcontrol(KpX, KiX, KdX, x_distance, x_integral, x_derivative)
                     PDy = PIDcontrol(KpY, KiY, KdY, y_distance, y_integral, y_derivative)
-                    print(x_distance_prev,y_distance_prev)
+                    # print(x_distance_prev,y_distance_prev)
                     x_distance_prev = x_distance
                     y_distance_prev = y_distance
                     motorx = max(min(PDx, 60), -60)
@@ -381,10 +418,10 @@ def run_image_processing():
                         jitter = 8  # Adjust this value to change the amount of jitter
                         motorx += random.uniform(-jitter, jitter)
                         motory += random.uniform(-jitter, jitter)
-                    print(x_distance,y_distance)
-                    print(x_integral,y_integral)
-                    print('de',x_derivative,y_derivative)
-                    print(motorx,motory)
+                    # print(x_distance,y_distance)
+                    # print(x_integral,y_integral)
+                    # print('de',x_derivative,y_derivative)
+                    # print(motorx,motory)
                     send_position(motorx,motory)
                     interval_time = time.time()
             
@@ -403,9 +440,11 @@ def start_solved():
     global x_integral
     global y_integral
     global start_solve
+    global interval_time
     start_solve = True
     x_integral = 0
     y_integral = 0
+    interval_time = time.time()
 
 def PIDcontrol(Kp,Ki,Kd,distance,integral,derivative):
     e = (Kp)*distance + (Ki)*integral + (Kd)*(derivative)
@@ -417,7 +456,7 @@ def send_position(angle1, angle2):
         angle2 = angle2 + 60
         ser.write(f"x,{angle1}".encode())
         ser.write(f"y,{angle2}".encode())
-        print(f"Sent command: {angle1},{angle2}")
+        #print(f"Sent command: {angle1},{angle2}")
 
 def create_gui():
     global timer_label
@@ -434,10 +473,6 @@ def create_gui():
     button2.pack()
 
     root.mainloop()
-
-def start_solve():
-    global start_time, timer_running
-    start_timer()
 
 if __name__ == "__main__":
     create_gui()
