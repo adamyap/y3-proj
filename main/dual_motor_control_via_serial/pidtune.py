@@ -6,6 +6,27 @@ import time
 import serial
 import tkinter as tk
 import threading
+import matplotlib.pyplot as plt
+from matplotlib.animation import FuncAnimation
+
+# List to store the history of the center of the ball
+center_history = []
+
+def update_plot(i):
+    # Clear the current plot
+    plt.clf()
+    # Plot the history of the center of the ball
+    plt.plot([c[0] for c in center_history], [c[1] for c in center_history])
+    plt.xlim(0, 700)  # Adjust these values to match the size of your image
+    plt.ylim(200, 700)  # Adjust these values to match the size of your image
+
+def plot_thread():
+# Create a new figure for the plot
+    fig = plt.figure()
+    # Create the FuncAnimation
+    anim = FuncAnimation(fig, update_plot, interval=2000)  # Update the plot every 1000 ms
+    # Show the plot
+    plt.show()
 
 def locate_ball(frame,edges):
     # Convert the frame to HSV
@@ -54,7 +75,7 @@ def run_image_processing():
     global ser
     try:
         # Initialize serial connection
-        ser = serial.Serial('COM3', 9600)
+        ser = serial.Serial('COM4', 9600)
         # Connect to webcam (0 = default cam)
         cap = cv2.VideoCapture(0,cv2.CAP_DSHOW)
         # Set the resolution to 720p
@@ -119,6 +140,7 @@ def run_image_processing():
                 # Find the smallest enclosing circle
                 (x_ball, y_ball), radius = cv2.minEnclosingCircle(ball_contours)
                 center = (int(x_ball), int(y_ball))
+                center_history.append((int(x_ball), 720-int(y_ball)))
                 radius = int(radius)
 
                 # Draw the smallest enclosing circle on the frame
@@ -264,6 +286,6 @@ def create_gui():
 target_point = None
 
 if __name__ == "__main__":
+    # Start the plot thread
+    threading.Thread(target=plot_thread).start()
     create_gui()
-    
-
