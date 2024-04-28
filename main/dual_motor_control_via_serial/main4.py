@@ -156,7 +156,7 @@ def run_image_processing():
         cap = cv2.VideoCapture(0,cv2.CAP_DSHOW) # 0 - default cam
         cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
         cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
-        cap.set(cv2.CAP_PROP_FPS, 30)
+        cap.set(cv2.CAP_PROP_FPS, 60)
         send_position(0,0)
     except:
         print("Error: Could not connect to the camera or the Arduino")
