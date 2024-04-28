@@ -30,10 +30,10 @@ def update_timer():
         elapsed_time = time.time() - start_time
         minutes = int(elapsed_time / 60)
         seconds = int(elapsed_time) % 60
-        tenths_of_seconds = int((elapsed_time - int(elapsed_time)) * 10)  # Adjust to show tenths of a second
-        formatted_time = f"{minutes:02}:{seconds:02}.{tenths_of_seconds:01}"  # Adjust format for 0.1s resolution
+        tenths_of_seconds = int((elapsed_time - int(elapsed_time)) * 10)  
+        formatted_time = f"{minutes:02}:{seconds:02}.{tenths_of_seconds:01}" 
         timer_label.config(text=formatted_time)
-        timer_label.after(100, update_timer)  # Update every 100 ms for 0.1s resolution
+        timer_label.after(100, update_timer) 
 
 def define_path(contours,edges):
     # min area for filled path
@@ -363,7 +363,7 @@ def create_gui():
     root.title("Main")
     root.geometry("200x200")
     
-    timer_label = tk.Label(root, text="00:00:000", font=("Helvetica", 16))
+    timer_label = tk.Label(root, text="00:00:0", font=("Helvetica", 17))
     timer_label.pack()
 
     button1 = tk.Button(root, text="Start Image Processing", command=lambda: threading.Thread(target=run_image_processing).start())
