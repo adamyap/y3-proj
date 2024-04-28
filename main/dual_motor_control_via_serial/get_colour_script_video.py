@@ -4,7 +4,7 @@ import numpy as np
 # Connect to webcam (0 = default cam)
 cap = cv2.VideoCapture(0,cv2.CAP_DSHOW)
 
-# Set the resolution to 720p
+# Set the resolution to 720p  
 cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
 cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
 

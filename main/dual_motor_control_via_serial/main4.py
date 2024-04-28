@@ -30,10 +30,10 @@ def update_timer():
         elapsed_time = time.time() - start_time
         minutes = int(elapsed_time / 60)
         seconds = int(elapsed_time) % 60
-        milliseconds = int((elapsed_time - int(elapsed_time)) * 1000)
-        formatted_time = f"{minutes:02}:{seconds:02}:{milliseconds:03}"
+        tenths_of_seconds = int((elapsed_time - int(elapsed_time)) * 10)  # Adjust to show tenths of a second
+        formatted_time = f"{minutes:02}:{seconds:02}.{tenths_of_seconds:01}"  # Adjust format for 0.1s resolution
         timer_label.config(text=formatted_time)
-        timer_label.after(50, update_timer)
+        timer_label.after(100, update_timer)  # Update every 100 ms for 0.1s resolution
 
 def define_path(contours,edges):
     # min area for filled path
