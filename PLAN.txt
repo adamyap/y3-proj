@@ -5,7 +5,7 @@ Detect the movement of a brightly colored ball in a labyrinth using Python and O
     - Use OpenCV to load the video capture and apply detection algorithms
         - Apply color thresholding to extract the ball.
         - Find contours to isolate the ball.
-    - Do BIG MATH to figure out ball movement.
+    - Do maths to figure out ball movement.
     - Apply path-finding algorithms to find the best path through the labyrinth.
     - Display everything on PC.
         - Highlight the ball location.
