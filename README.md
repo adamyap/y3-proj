@@ -1,3 +1,3 @@
-# y3-proj
+# y3-labyrinth-proj
 
-the labyrinth do be shmoovin'
+Automated Computer Vision Labyrinth
